@@ -1,0 +1,109 @@
+{
+	"info": {
+		"_postman_id": "payout-service-api",
+		"name": "Payout Service API",
+		"description": "Collection for testing Payout Service endpoints",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Create Payouts for All Clients",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_url}}/api/payouts/cron",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"payouts",
+						"cron"
+					]
+				},
+				"description": "Creates payouts for all clients with accounts and wallets. Processes all accounts that have a Parent (client ID) set."
+			},
+			"response": []
+		},
+		{
+			"name": "Get All Payouts",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{base_url}}/api/payouts",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"payouts"
+					]
+				},
+				"description": "Retrieves all payouts from the database, ordered by CreatedOn descending."
+			},
+			"response": []
+		},
+		{
+			"name": "Get Payouts by Client ID",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{base_url}}/api/payouts/{{client_id}}",
+					"host": [
+						"{{base_url}}"
+					],
+					"path": [
+						"api",
+						"payouts",
+						"{{client_id}}"
+					]
+				},
+				"description": "Retrieves all payouts for a specific client ID. Finds the account by Parent (client ID) and returns all payouts for that account."
+			},
+			"response": []
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:3002",
+			"type": "string"
+		},
+		{
+			"key": "client_id",
+			"value": "CLIENT123",
+			"type": "string"
+		}
+	]
+}
+

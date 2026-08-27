@@ -1,0 +1,79 @@
+# Deploy ms-api backend (Node/Express) to Azure App Service.
+name: Deploy MS-API to Azure App Service
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+  workflow_dispatch:
+
+concurrency:
+  group: azure-deploy-ms-api-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  AZURE_RESOURCE_GROUP: MiPool-RGroup
+  API_APP: ms-api
+  API_URL: https://ms-api-dhgmbxhyh8axdtfr.canadacentral-01.azurewebsites.net
+
+jobs:
+  deploy-backend:
+    name: Build & deploy backend
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.x"
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install and build
+        run: |
+          npm ci --no-audit --no-fund
+          npm run build
+
+      - name: Prepare backend package
+        run: |
+          mkdir -p backend-package
+          cp -r dist package.json package-lock.json backend-package/
+          cd backend-package
+          npm ci --omit=dev --no-audit --no-fund
+
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Configure backend app
+        uses: azure/cli@v2
+        with:
+          inlineScript: |
+            az webapp config appsettings set \
+              --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" \
+              --name "${{ env.API_APP }}" \
+              --settings \
+                SCM_DO_BUILD_DURING_DEPLOYMENT=false \
+                WEBSITE_RUN_FROM_PACKAGE=0 \
+                WEBSITE_NODE_DEFAULT_VERSION=~22 \
+                NODE_ENV=production \
+                PORT=8080
+            az webapp config set \
+              --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" \
+              --name "${{ env.API_APP }}" \
+              --startup-file "node dist/server.js"
+
+      - name: Deploy backend
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ env.API_APP }}
+          slot-name: Production
+          package: backend-package
+          clean: true

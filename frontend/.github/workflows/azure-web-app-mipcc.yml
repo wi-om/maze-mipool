@@ -1,0 +1,85 @@
+# Deploy mipcc frontend (Vite SPA) to Azure App Service.
+# Backend: ms-api (separate repo / app service).
+name: Deploy MIPCC to Azure App Service
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+  workflow_dispatch:
+
+concurrency:
+  group: azure-deploy-mipcc-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  AZURE_RESOURCE_GROUP: MiPool-RGroup
+  FRONTEND_APP: mipcc
+  FRONTEND_URL: https://mipcc-dpabarewhbfcb3h5.uaenorth-01.azurewebsites.net
+  # ms-api — baked into Vite build at compile time
+  BACKEND_URL: https://api.mipool.io/echo
+
+jobs:
+  deploy-frontend:
+    name: Build & deploy frontend
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.x"
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install, build, production deps
+        env:
+          VITE_BACKEND_URL: ${{ env.BACKEND_URL }}
+          VITE_MS_API_SUBSCRIPTION_KEY: ${{ secrets.MS_API_SUBSCRIPTION_KEY }}
+          VITE_GRAFANA_FARO_URL: ${{ secrets.VITE_GRAFANA_FARO_URL }}
+        run: |
+          npm ci --no-audit --no-fund
+          npm run build
+          npm prune --omit=dev
+
+      - name: Prepare frontend package
+        run: |
+          mkdir -p frontend-package
+          cp -r dist server.cjs package.json package-lock.json node_modules frontend-package/
+
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Configure frontend app
+        uses: azure/cli@v2
+        with:
+          inlineScript: |
+            az webapp config appsettings set \
+              --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" \
+              --name "${{ env.FRONTEND_APP }}" \
+              --settings \
+                SCM_DO_BUILD_DURING_DEPLOYMENT=false \
+                WEBSITE_RUN_FROM_PACKAGE=0 \
+                WEBSITE_NODE_DEFAULT_VERSION=~22 \
+                NODE_ENV=production \
+                PORT=8080
+            az webapp config set \
+              --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" \
+              --name "${{ env.FRONTEND_APP }}" \
+              --startup-file "node server.cjs"
+
+      - name: Deploy frontend
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ env.FRONTEND_APP }}
+          slot-name: Production
+          package: frontend-package
+          clean: true

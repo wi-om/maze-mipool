@@ -1,0 +1,11 @@
+# Deprecated — mipcc now deploys to Azure App Service via azure-web-app-mipcc.yml
+name: Azure Static Web Apps CI/CD - MIPCC (disabled)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  disabled:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Use .github/workflows/azure-web-app-mipcc.yml instead."
