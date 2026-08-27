@@ -1,0 +1,14 @@
+node_modules
+dist
+.git
+.gitignore
+.env
+.env.*
+.github
+.vscode
+scripts
+Dockerfile
+.dockerignore
+README.md
+API_DOCUMENTATION.md
+Payout_Service_API.postman_collection.json
