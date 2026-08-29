@@ -1,0 +1,13 @@
+node_modules
+dist
+reports
+.git
+.gitignore
+.env
+.env.*
+*.pem
+.github
+docs
+Dockerfile
+.dockerignore
+README.md

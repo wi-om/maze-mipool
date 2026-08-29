@@ -34,16 +34,29 @@ const app = express();
 
 // ── Security ──────────────────────────────────────────────────
 app.use(helmet());
+const allowedOrigins = [
+  "https://cmb-d.defitech.net",
+  "http://localhost:5173",
+  "http://localhost:5175",
+  "https://mipcc-dpabarewhbfcb3h5.uaenorth-01.azurewebsites.net",
+  // Comma-separated, so each deployed environment can add its own hostnames.
+  ...(process.env.CORS_ORIGIN || "")
+    .split(",")
+    .map((o) => o.trim())
+    .filter(Boolean),
+];
+
 app.use(
   cors({
-    origin: [
-      "https://cmb-d.defitech.net",
-      "http://localhost:5173",
-      "http://localhost:5175",
-      "https://mipcc-dpabarewhbfcb3h5.uaenorth-01.azurewebsites.net"
+    origin: allowedOrigins,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: [
+      "Content-Type",
+      "Authorization",
+      "x-api-key",
+      "x-api-pass",
+      "Ocp-Apim-Subscription-Key",
     ],
-    methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
-    allowedHeaders: ["Content-Type", "Authorization", "x-api-key", "x-api-pass"],
     credentials: true,
   })
 );
