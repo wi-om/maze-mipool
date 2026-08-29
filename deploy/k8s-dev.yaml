@@ -1,0 +1,185 @@
+# maze-mipool on k8s-dev — democc.mipool.io
+#
+# Secrets (delta-mipool-env) are NOT in this file. scripts/deploy-dev.sh builds
+# them from backend/.env. Cluster-specific hosts below override envFrom keys.
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: delta-mipool-dev
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  namespace: delta-mipool-dev
+  labels:
+    app: backend
+spec:
+  # Pinned to 1: TypeORM synchronize=true — extra replicas race on DDL.
+  replicas: 1
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      containers:
+        - name: backend
+          image: delta-mipool-backend:dev
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3002
+              name: http
+          envFrom:
+            - secretRef:
+                name: delta-mipool-env
+          env:
+            - name: NODE_ENV
+              value: production
+            - name: PORT
+              value: "3002"
+            - name: DB_HOST
+              value: postgres.platform.svc.cluster.local
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_SCHEMA
+              value: mipool
+            - name: DB_SSL
+              value: "false"
+            - name: USER_DB_HOST
+              value: postgres.platform.svc.cluster.local
+            - name: USER_DB_PORT
+              value: "5432"
+            - name: USER_DB_SCHEMA
+              value: delta
+            - name: CORS_ORIGIN
+              value: "http://democc.dev.local,https://democc.mipool.io,https://demo.mipool.io,https://demoadmin.mipool.io"
+          resources:
+            requests:
+              cpu: 200m
+              memory: 512Mi
+            limits:
+              cpu: "2"
+              memory: 2Gi
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 3002
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 3002
+            initialDelaySeconds: 40
+            periodSeconds: 20
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+  namespace: delta-mipool-dev
+spec:
+  selector:
+    app: backend
+  ports:
+    - port: 3002
+      targetPort: 3002
+      name: http
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  namespace: delta-mipool-dev
+  labels:
+    app: frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: frontend
+  template:
+    metadata:
+      labels:
+        app: frontend
+    spec:
+      containers:
+        - name: frontend
+          image: delta-mipool-frontend:dev
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+              name: http
+          env:
+            - name: NODE_ENV
+              value: production
+            - name: PORT
+              value: "8080"
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 20
+            periodSeconds: 20
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  namespace: delta-mipool-dev
+spec:
+  selector:
+    app: frontend
+  ports:
+    - port: 8080
+      targetPort: 8080
+      name: http
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: delta-mipool
+  namespace: delta-mipool-dev
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/proxy-body-size: "32m"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: democc.dev.local
+      http: &mipoolPaths
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: backend
+                port:
+                  number: 3002
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend
+                port:
+                  number: 8080
+    - host: democc.mipool.io
+      http: *mipoolPaths
