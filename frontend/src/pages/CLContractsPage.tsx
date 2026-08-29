@@ -68,12 +68,15 @@ export default function CLContractsPage() {
     const fetchContracts = async () => {
         setLoading(true);
         try {
-            const [contractData, summaryData] = await Promise.all([
-                getAllCLContracts(),
-                getCLContractSummary()
-            ]);
+            const contractData = await getAllCLContracts();
             setContracts(contractData);
-            setSummary(summaryData);
+            try {
+                const summaryData = await getCLContractSummary();
+                setSummary(summaryData);
+            } catch (summaryError) {
+                console.error("Failed to fetch CL contract summary", summaryError);
+                setSummary([]);
+            }
         } catch (error) {
             console.error("Failed to fetch CL contracts", error);
             toast.error("Failed to fetch CL contracts");

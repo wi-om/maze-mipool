@@ -23,7 +23,10 @@ export const getAllCLContracts = async (req: AuthRequest, res: Response) => {
 
 export const getCLContractSummary = async (req: AuthRequest, res: Response) => {
   try {
-    const summary = await AppDataSource.query('SELECT * FROM "CLActiveHashrateSummary"');
+    const schema = process.env.DB_SCHEMA || "public";
+    const summary = await AppDataSource.query(
+      `SELECT * FROM "${schema}"."CLActiveHashrateSummary"`,
+    );
     return res.status(200).json(summary);
   } catch (error) {
     console.error("Error fetching CL summary:", error);

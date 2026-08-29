@@ -15,6 +15,7 @@ const MIGRATIONS = [
   "add-mips-otps-indexes.sql",
   "add-list-api-indexes.sql",
   "add-mips-users-password.sql",
+  "create-cl-active-hashrate-summary.sql",
   "add-contracts-mcc-transaction-id.sql",
   "fix-contracts-id-sequence.sql",
 ];

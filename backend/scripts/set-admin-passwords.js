@@ -5,6 +5,8 @@
 require("dotenv").config();
 const { Client } = require("pg");
 
+const SCHEMA = process.env.DB_SCHEMA || "mipool";
+
 const USERS = [
   {
     email: "om@workinfinity.com",
@@ -30,7 +32,7 @@ async function main() {
 
   for (const { email, hash } of USERS) {
     const r = await client.query(
-      `UPDATE "MipsUsers" SET "Password" = $1 WHERE email = $2 RETURNING id, email`,
+      `UPDATE "${SCHEMA}"."MipsUsers" SET "Password" = $1 WHERE email = $2 RETURNING id, email`,
       [hash, email],
     );
     if (r.rowCount === 0) {
