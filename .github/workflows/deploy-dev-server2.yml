@@ -51,11 +51,19 @@ jobs:
           FRONTEND_ENV: ${{ secrets.FRONTEND_ENV }}
         run: |
           set -euo pipefail
-          test -n "${BACKEND_ENV:-}" || { echo "Missing BACKEND_ENV" >&2; exit 1; }
-          test -n "${FRONTEND_ENV:-}" || { echo "Missing FRONTEND_ENV" >&2; exit 1; }
+          test -n "${BACKEND_ENV:-}" || { echo "Missing BACKEND_ENV secret in GitHub (Settings → Secrets → Actions)" >&2; exit 1; }
+          test -n "${FRONTEND_ENV:-}" || { echo "Missing FRONTEND_ENV secret in GitHub (Settings → Secrets → Actions)" >&2; exit 1; }
           printf '%s\n' "$BACKEND_ENV" > backend/.env
           printf '%s\n' "$FRONTEND_ENV" > frontend/.env
           chmod 600 backend/.env frontend/.env
+          for f in backend/.env frontend/.env; do
+            sed -i '1s/^\xEF\xBB\xBF//; s/\r$//' "$f"
+            if ! grep -qE '^[A-Za-z_][A-Za-z0-9_]*=' "$f"; then
+              echo "$f has no KEY=VALUE lines after materialising from GitHub secret." >&2
+              echo "Update repository secret $(basename "$f" .env | tr '[:lower:]' '[:upper:]')_ENV with your local $f contents (one KEY=VALUE per line)." >&2
+              exit 1
+            fi
+          done
 
       - name: Build and deploy to k8s-dev
         env:
