@@ -1,0 +1,77 @@
+# Deploy maze-mipool to k8s-dev → https://democc.mipool.io
+#
+# Required repository secrets:
+#   K8S_DEV_SSH_KEY   private key for wiadmin@server2 (port 2223)
+#   BACKEND_ENV       contents of backend/.env
+#   FRONTEND_ENV      contents of frontend/.env
+#
+# Optional variable: APP_HOST (default democc.mipool.io)
+name: Deploy Dev (server2)
+
+on:
+  push:
+    branches: [main, development]
+    paths:
+      - "backend/**"
+      - "frontend/**"
+      - "deploy/**"
+      - "scripts/deploy-dev.sh"
+      - ".github/workflows/deploy-dev-server2.yml"
+  workflow_dispatch:
+    inputs:
+      app_host:
+        description: "Public hostname (blank = democc.mipool.io)"
+        required: false
+
+concurrency:
+  group: maze-mipool-dev-server2
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    environment: development
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install SSH key
+        env:
+          K8S_DEV_SSH_KEY: ${{ secrets.K8S_DEV_SSH_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "${K8S_DEV_SSH_KEY:-}" || { echo "Missing K8S_DEV_SSH_KEY" >&2; exit 1; }
+          mkdir -p "$HOME/.ssh"
+          printf '%s\n' "$K8S_DEV_SSH_KEY" > "$HOME/.ssh/server2_wiadmin"
+          chmod 600 "$HOME/.ssh/server2_wiadmin"
+
+      - name: Materialise .env files
+        env:
+          BACKEND_ENV: ${{ secrets.BACKEND_ENV }}
+          FRONTEND_ENV: ${{ secrets.FRONTEND_ENV }}
+        run: |
+          set -euo pipefail
+          test -n "${BACKEND_ENV:-}" || { echo "Missing BACKEND_ENV" >&2; exit 1; }
+          test -n "${FRONTEND_ENV:-}" || { echo "Missing FRONTEND_ENV" >&2; exit 1; }
+          printf '%s\n' "$BACKEND_ENV" > backend/.env
+          printf '%s\n' "$FRONTEND_ENV" > frontend/.env
+          chmod 600 backend/.env frontend/.env
+
+      - name: Build and deploy to k8s-dev
+        env:
+          APP_HOST: ${{ inputs.app_host || vars.APP_HOST }}
+        run: |
+          set -euo pipefail
+          [[ -n "${APP_HOST:-}" ]] || unset APP_HOST
+          chmod +x ./scripts/deploy-dev.sh ./deploy/remote-deploy.sh
+          ./scripts/deploy-dev.sh
+
+      - name: Deployment summary
+        if: success()
+        run: |
+          {
+            echo "## maze-mipool **dev** deployed"
+            echo
+            echo "- Namespace: \`delta-mipool-dev\`"
+            echo "- Domain: \`https://democc.mipool.io\`"
+          } >> "$GITHUB_STEP_SUMMARY"
