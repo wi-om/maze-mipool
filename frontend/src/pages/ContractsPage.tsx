@@ -16,6 +16,32 @@ import { toast } from "sonner";
 
 type FilterPeriod = "today" | "yesterday" | "7days" | "30days" | "quarterly" | "yearly" | "all" | "custom";
 
+/** Matches mipool backend EU contract status codes (registerContract sets Status=2). */
+function euContractStatusLabel(status: number | string | undefined): string {
+  switch (Number(status)) {
+    case 0:
+      return "Pending";
+    case 1:
+      return "Starting";
+    case 2:
+      return "Active";
+    case 3:
+      return "Expired";
+    case 4:
+      return "Cancelled";
+    default:
+      return "Unknown";
+  }
+}
+
+function euContractStatusVariant(status: number | string | undefined): "default" | "secondary" | "destructive" | "outline" {
+  const code = Number(status);
+  if (code === 2) return "default";
+  if (code === 1) return "outline";
+  if (code === 3 || code === 4) return "destructive";
+  return "secondary";
+}
+
 export default function ContractsPage() {
     const [contracts, setContracts] = useState<Contract[]>([]);
     const [loading, setLoading] = useState(true);
@@ -104,11 +130,13 @@ export default function ContractsPage() {
         {
             header: "Status",
             accessor: (item) => (
-                <Badge variant={String(item.Status) === "1" ? "default" : "secondary"}>{String(item.Status) === "1" ? "Active" : "Inactive"}</Badge>
+                <Badge variant={euContractStatusVariant(item.Status)}>
+                    {euContractStatusLabel(item.Status)}
+                </Badge>
             ),
             sortable: true,
             sortKey: "Status",
-            searchValue: (item) => (String(item.Status) === "1" ? "Active" : "Inactive"),
+            searchValue: (item) => euContractStatusLabel(item.Status),
         },
         {
             header: "Start Date",

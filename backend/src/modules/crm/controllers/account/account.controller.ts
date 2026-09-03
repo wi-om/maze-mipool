@@ -60,7 +60,11 @@ export const getAccountByClientid = async (req: Request, res: Response) => {
   if (!account) {
     return res.status(404).json({ message: "No account found for this clientid" });
   }
-  return res.json({ id: account.ID, acNo: account.AcNo, parent: account.Parent });
+  return res.json({
+    id: account.ID,
+    acNo: account.AcNo?.trim?.() ?? account.AcNo,
+    parent: account.Parent?.trim?.() ?? account.Parent,
+  });
 };
 
 export const getAllAccounts = async (_req: Request, res: Response) => {

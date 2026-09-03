@@ -111,14 +111,18 @@ export const registerContract = async (req: Request, res: Response) => {
       data: contract,
     });
   } catch (err: any) {
-    console.error(err);
+    console.error("[registerContract]", err);
     if (err?.code === "23505" && String(err?.detail || "").includes('"Id"')) {
       return res.status(500).json({
         message: "Contract Id sequence out of sync. Run migrations/fix-contracts-id-sequence.sql and retry.",
         detail: err.detail,
       });
     }
-    return res.status(500).json({ message: "Internal Server Error" });
+    return res.status(500).json({
+      message: err?.message || "Internal Server Error",
+      detail: err?.detail ?? null,
+      code: err?.code ?? null,
+    });
   }
 };
 
