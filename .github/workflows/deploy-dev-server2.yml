@@ -56,14 +56,23 @@ jobs:
           printf '%s\n' "$BACKEND_ENV" > backend/.env
           printf '%s\n' "$FRONTEND_ENV" > frontend/.env
           chmod 600 backend/.env frontend/.env
-          for f in backend/.env frontend/.env; do
-            sed -i '1s/^\xEF\xBB\xBF//; s/\r$//' "$f"
-            if ! grep -qE '^[A-Za-z_][A-Za-z0-9_]*=' "$f"; then
-              echo "$f has no KEY=VALUE lines after materialising from GitHub secret." >&2
-              echo "Update repository secret $(basename "$f" .env | tr '[:lower:]' '[:upper:]')_ENV with your local $f contents (one KEY=VALUE per line)." >&2
+          validate_env_file() {
+            local file="$1" secret_name="$2"
+            sed -i '1s/^\xEF\xBB\xBF//; s/\r$//' "$file"
+            local lines kv_lines
+            lines=$(wc -l < "$file" | tr -d ' ')
+            kv_lines=$(grep -cE '^[A-Za-z_][A-Za-z0-9_]*=' "$file" || true)
+            echo "$file: $lines line(s), $kv_lines KEY=VALUE line(s) (from GitHub secret $secret_name)"
+            if [[ "${kv_lines:-0}" -lt 1 ]]; then
+              echo "ERROR: $secret_name must contain at least one KEY=VALUE line (e.g. PORT=3002)." >&2
+              echo "Set it under: Settings → Environments → development → Environment secrets" >&2
+              echo "  (or Settings → Secrets and variables → Actions if not using environment secrets)" >&2
+              echo "Paste the full contents of your local $file — one variable per line." >&2
               exit 1
             fi
-          done
+          }
+          validate_env_file backend/.env BACKEND_ENV
+          validate_env_file frontend/.env FRONTEND_ENV
 
       - name: Build and deploy to k8s-dev
         env:
